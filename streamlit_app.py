@@ -11,7 +11,7 @@ st.markdown("<h1 style='text-align: center;'>Stock Price Visualizer</h1>", unsaf
 
 # Sidebar Input for Ticker Symbol
 st.sidebar.header("Stock Search")
-ticker = st.sidebar.text_input("Enter Stock Ticker Symbol:", value="AAPL").upper()
+ticker = st.sidebar.text_input("Enter Stock Ticker Symbol:", value="BTC-USD").upper()
 
 time_options = {"1 Year": "1y", "5 Years": "5y", "10 Years": "10y", "Maximum": "max"}
 time_periods_in_years = {"1 Year": 1, "5 Years": 5, "10 Years": 10, "Maximum": 20}  # Assuming max is 20 years

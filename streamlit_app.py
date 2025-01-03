@@ -18,6 +18,8 @@ time_periods_in_years = {"1 Year": 1, "5 Years": 5, "10 Years": 10, "Maximum": 2
 
 time_period = st.sidebar.selectbox("Select Time Period:", options=list(time_options.keys()))
 
+y_axis_scale = st.sidebar.selectbox("Select Y-Axis Scale:", options=["Standard", "Logarithmic"])
+
 # Function to Load Stock Data
 def load_data(ticker, period):
     stock_data = yf.Ticker(ticker)
@@ -70,9 +72,10 @@ if ticker:
         # Future Projections
         projection_length = int(0.25 * time_periods_in_years[time_period] * 252)  # Approx. 252 trading days per year
         future_indices = np.arange(len(data), len(data) + projection_length).reshape(-1, 1)
-        future_linear_trendline = linear_model.predict(future_indices)
-        future_log_trendline = log_model.predict(np.log1p(future_indices))
-        future_poly_trendline = poly_model.predict(poly.fit_transform(future_indices))
+        future_indices_df = pd.DataFrame(future_indices, columns=['Index'])  # Add feature names
+        future_linear_trendline = linear_model.predict(future_indices_df)
+        future_log_trendline = log_model.predict(np.log1p(future_indices_df))  # Use log transformation with feature names
+        future_poly_trendline = poly_model.predict(poly.transform(future_indices_df))  # Polynomial features
 
         # Plot the Data
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -88,6 +91,10 @@ if ticker:
         ax.plot(future_dates, future_linear_trendline, label="Projected Linear Trendline", color="red", linestyle="dotted")
         ax.plot(future_dates, future_log_trendline, label="Projected Logarithmic Trendline", color="purple", linestyle="dotted")
         ax.plot(future_dates, future_poly_trendline, label="Projected Polynomial Trendline", color="brown", linestyle="dotted")
+
+        # Set Y-Axis Scale
+        if y_axis_scale == "Logarithmic":
+            ax.set_yscale("log")
 
         # Chart Customizations
         ax.set_title(f"Stock Price for {ticker}")

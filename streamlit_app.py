@@ -12,16 +12,19 @@ st.markdown("<h1 style='text-align: center;'>Stock Price Visualizer</h1>", unsaf
 st.sidebar.header("Stock Search")
 ticker = st.sidebar.text_input("Enter Stock Ticker Symbol:", value="AAPL").upper()
 
+time_options = {"1 Year": "1y", "5 Years": "5y", "10 Years": "10y", "Maximum": "max"}
+time_period = st.sidebar.selectbox("Select Time Period:", options=list(time_options.keys()))
+
 # Function to Load Stock Data
-def load_data(ticker):
+def load_data(ticker, period):
     stock_data = yf.Ticker(ticker)
-    hist = stock_data.history(period="1y")
+    hist = stock_data.history(period=period)
     return hist
 
 # Load and Display Data
 if ticker:
     try:
-        data = load_data(ticker)
+        data = load_data(ticker, time_options[time_period])
         data['10_SMA'] = data['Close'].rolling(window=10).mean()
         data['200_SMA'] = data['Close'].rolling(window=200).mean()
 

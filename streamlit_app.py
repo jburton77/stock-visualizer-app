@@ -13,6 +13,8 @@ st.sidebar.header("Stock Search")
 ticker = st.sidebar.text_input("Enter Stock Ticker Symbol:", value="AAPL").upper()
 
 time_options = {"1 Year": "1y", "5 Years": "5y", "10 Years": "10y", "Maximum": "max"}
+time_periods_in_years = {"1 Year": 1, "5 Years": 5, "10 Years": 10, "Maximum": 20}  # Assuming max is 20 years
+
 time_period = st.sidebar.selectbox("Select Time Period:", options=list(time_options.keys()))
 
 # Function to Load Stock Data
@@ -38,9 +40,22 @@ if ticker:
         trendline = model.predict(X)
 
         # Equation of the trendline
+        st.subheader("Trendline Equation")
         slope = model.coef_[0]
         intercept = model.intercept_
         equation = f"y = {slope:.2f}x + {intercept:.2f}"
+
+        # Future Projections
+        projection_length = int(0.25 * time_periods_in_years[time_period] * 252)  # Approx. 252 trading days per year
+        future_indices = np.arange(len(data), len(data) + projection_length).reshape(-1, 1)
+        future_trendline = model.predict(future_indices)
+
+        # Upper and Lower Bound Calculations
+        data['Upper_Bound'] = data['10_SMA'] + (data['10_SMA'] * 0.05)  # 5% above 10_SMA
+        data['Lower_Bound'] = data['10_SMA'] - (data['10_SMA'] * 0.05)  # 5% below 10_SMA
+        last_sma = data['10_SMA'].iloc[-1]
+        future_upper_bound = last_sma * (1 + 0.05)
+        future_lower_bound = last_sma * (1 - 0.05)
 
         # Plot the Data
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -48,6 +63,13 @@ if ticker:
         ax.plot(data.index, data['10_SMA'], label="10-Day SMA", color="green")
         ax.plot(data.index, data['200_SMA'], label="200-Day SMA", color="orange")
         ax.plot(data.index, trendline, label="Trendline", color="red", linestyle="--")
+        ax.plot(data.index, data['Upper_Bound'], label="Upper Bound", color="purple", linestyle="--")
+        ax.plot(data.index, data['Lower_Bound'], label="Lower Bound", color="brown", linestyle="--")
+
+        # Future Projections Plot
+        future_dates = pd.date_range(start=data.index[-1], periods=projection_length + 1, freq='B')[1:]
+        ax.plot(future_dates, future_trendline, label="Projected Trendline", color="red", linestyle="dotted")
+        ax.fill_between(future_dates, future_lower_bound, future_upper_bound, color="gray", alpha=0.3, label="Projected Range")
 
         # Chart Customizations
         ax.set_title(f"Stock Price for {ticker}")

@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 
 # Streamlit App Title
 st.markdown("<h1 style='text-align: center;'>Stock Price Visualizer</h1>", unsafe_allow_html=True)
@@ -35,41 +36,58 @@ if ticker:
         X = data[['Index']]
         y = data['Close']
 
-        model = LinearRegression()
-        model.fit(X, y)
-        trendline = model.predict(X)
+        # Linear Regression Model
+        linear_model = LinearRegression()
+        linear_model.fit(X, y)
+        linear_trendline = linear_model.predict(X)
 
-        # Equation of the trendline
-        st.subheader("Trendline Equation")
-        slope = model.coef_[0]
-        intercept = model.intercept_
-        equation = f"y = {slope:.2f}x + {intercept:.2f}"
+        # Logarithmic Regression Model
+        X_log = np.log1p(X)  # Apply log transformation
+        log_model = LinearRegression()
+        log_model.fit(X_log, y)
+        log_trendline = log_model.predict(X_log)
+
+        # Polynomial Regression Model (degree 2 for quadratic)
+        poly = PolynomialFeatures(degree=2)
+        X_poly = poly.fit_transform(X)
+        poly_model = LinearRegression()
+        poly_model.fit(X_poly, y)
+        poly_trendline = poly_model.predict(X_poly)
+
+        # Equation of the trendlines
+        linear_slope = linear_model.coef_[0]
+        linear_intercept = linear_model.intercept_
+        linear_equation = f"y = {linear_slope:.2f}x + {linear_intercept:.2f}"
+
+        log_slope = log_model.coef_[0]
+        log_intercept = log_model.intercept_
+        log_equation = f"y = {log_slope:.2f}ln(x) + {log_intercept:.2f}"
+
+        poly_coeffs = poly_model.coef_
+        poly_intercept = poly_model.intercept_
+        poly_equation = f"y = {poly_coeffs[2]:.2f}x² + {poly_coeffs[1]:.2f}x + {poly_intercept:.2f}"
 
         # Future Projections
         projection_length = int(0.25 * time_periods_in_years[time_period] * 252)  # Approx. 252 trading days per year
         future_indices = np.arange(len(data), len(data) + projection_length).reshape(-1, 1)
-        future_trendline = model.predict(future_indices)
-
-        # Upper and Lower Bound Calculations
-        data['Upper_Bound'] = data['10_SMA'] + (data['10_SMA'] * 0.05)  # 5% above 10_SMA
-        data['Lower_Bound'] = data['10_SMA'] - (data['10_SMA'] * 0.05)  # 5% below 10_SMA
-        last_sma = data['10_SMA'].iloc[-1]
-        future_upper_bound = last_sma * (1 + 0.05)
-        future_lower_bound = last_sma * (1 - 0.05)
+        future_linear_trendline = linear_model.predict(future_indices)
+        future_log_trendline = log_model.predict(np.log1p(future_indices))
+        future_poly_trendline = poly_model.predict(poly.fit_transform(future_indices))
 
         # Plot the Data
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.plot(data.index, data['Close'], label="Close Price", color="blue")
         ax.plot(data.index, data['10_SMA'], label="10-Day SMA", color="green")
         ax.plot(data.index, data['200_SMA'], label="200-Day SMA", color="orange")
-        ax.plot(data.index, trendline, label="Trendline", color="red", linestyle="--")
-        ax.plot(data.index, data['Upper_Bound'], label="Upper Bound", color="purple", linestyle="--")
-        ax.plot(data.index, data['Lower_Bound'], label="Lower Bound", color="brown", linestyle="--")
+        ax.plot(data.index, linear_trendline, label="Linear Trendline", color="red", linestyle="--")
+        ax.plot(data.index, log_trendline, label="Logarithmic Trendline", color="purple", linestyle="--")
+        ax.plot(data.index, poly_trendline, label="Polynomial Trendline", color="brown", linestyle="--")
 
         # Future Projections Plot
         future_dates = pd.date_range(start=data.index[-1], periods=projection_length + 1, freq='B')[1:]
-        ax.plot(future_dates, future_trendline, label="Projected Trendline", color="red", linestyle="dotted")
-        ax.fill_between(future_dates, future_lower_bound, future_upper_bound, color="gray", alpha=0.3, label="Projected Range")
+        ax.plot(future_dates, future_linear_trendline, label="Projected Linear Trendline", color="red", linestyle="dotted")
+        ax.plot(future_dates, future_log_trendline, label="Projected Logarithmic Trendline", color="purple", linestyle="dotted")
+        ax.plot(future_dates, future_poly_trendline, label="Projected Polynomial Trendline", color="brown", linestyle="dotted")
 
         # Chart Customizations
         ax.set_title(f"Stock Price for {ticker}")
@@ -78,9 +96,16 @@ if ticker:
         ax.grid(True, linestyle="--", alpha=0.6)
         ax.legend()
 
-        # Show Trendline Equation
-        plt.text(0.05, 0.95, equation, transform=ax.transAxes, fontsize=10,
+        # Show Trendline Equations
+        plt.text(0.05, 0.90, linear_equation, transform=ax.transAxes, fontsize=10,
                  verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
+        plt.text(0.05, 0.85, log_equation, transform=ax.transAxes, fontsize=10,
+                 verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
+        plt.text(0.05, 0.80, poly_equation, transform=ax.transAxes, fontsize=10,
+                 verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
+
+        plt.text(0.20, 0.95, "Equations of Regression Trendlines", transform=plt.gca().transAxes, fontsize=10,
+                 ha='center', va='center', fontweight='bold')
 
         st.pyplot(fig)
 
